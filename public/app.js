@@ -1,11 +1,31 @@
-"use strict";
-
 var todo = (function() {
+  "use strict";
   var keyCode = { ENTER: 13 };
 
-  var TaskView = function(task,onDone) {
+  var Todo = function(view) {
+    this.tasks = [];
+    this.counter = 0;
+    this.view = view;
+  };
+  Todo.prototype = {
+    createTask: function (title) {
+      this.tasks.push({id: this.counter, title: title, isDone: false});
+      this.counter++;
+      this.view.render();
+    },
+    done: function(task) {
+      this.tasks.forEach(function (t) {
+        if (t.id === task.id) {
+          task.isDone = true;
+        }
+      });
+      this.view.render();
+    }
+  };
+
+  var TaskView = function(task, todo) {
     this.task = task;
-    this.onDone = onDone;
+    this.todo = todo;
   };
   TaskView.prototype = {
     render: function () {
@@ -18,12 +38,12 @@ var todo = (function() {
         del.appendChild(text);
         elem.appendChild(del);
       } else {
-        var button = document.createElement('button');
-        button.appendChild(document.createTextNode('完了'));
+        var button = document.createElement("button");
+        button.appendChild(document.createTextNode("完了"));
         var that = this;
-        button.addEventListener('click',function() {
-          that.onDone(that.task);
-        });
+        button.addEventListener("click", function() {
+          that.todo.done(that.task);
+        }, false, this);
         elem.appendChild(text);
         elem.appendChild(button);
       }
@@ -32,24 +52,24 @@ var todo = (function() {
     }
   };
 
-  var TodoInputView = function (onClick){
-    this.onClick = onClick;
+  var TodoInputView = function (todo){
+    this.todo = todo;
   };
   TodoInputView.prototype = {
     render: function () {
-      var that = this;
+      var todo = this.todo;
       var input = document.createElement("input");
-      input.setAttribute("type","text");
+      input.setAttribute("type", "text");
       input.addEventListener("keydown", function(e) {
-        if (e.keyCode == keyCode.ENTER) {
-          that.onClick(input.value);
+        if (e.keyCode === keyCode.ENTER) {
+          todo.createTask(input.value);
         }
-      });
+      }, false);
       var button = document.createElement("button");
       button.appendChild(document.createTextNode("登録"));
       button.addEventListener("click", function(e) {
-        that.onClick(input.value);
-      });
+        todo.createTask(input.value);
+      }, false);
       var docfrag = document.createDocumentFragment();
       docfrag.appendChild(input);
       docfrag.appendChild(button);
@@ -57,70 +77,43 @@ var todo = (function() {
     }
   };
 
-  var TodoView = function(e) {
+  var TodoViewController = function(e) {
     this.counter = 0;
     this.elem = e;
-    this.tasks = [];
+    this.todo = new Todo(this);
   };
-  TodoView.prototype = {
-    tasks: [],
-    createTask: function (text) {
-      this.tasks.push({
-        no: this.counter,
-        title: text,
-        isDone: false
-      });
-      this.counter++;
-      this.render();
-    },
-    done: function (task) {
-      this.tasks.forEach(function (t) {
-        if (t.no == task.no) {
-          task.isDone = true;
-        }
-      });
-      this.render();
-    },
+  TodoViewController.prototype = {
     clear: function () {
       while(this.elem.firstChild){ this.elem.removeChild(this.elem.firstChild); }
     },
     renderHeader: function () {
       var h1 = document.createElement("h1");
-      return h1.appendChild(document.createTextNode("TODOリスト"));
-    },
-    onCreate: function() {
-      var that = this;
-      return function(n) { return that.createTask(n); };
-    },
-    onDone: function() {
-      var that = this;
-      return function(n) { return that.done(n); }
+      h1.appendChild(document.createTextNode("TODOリスト"));
+      return h1;
     },
     render: function () {
       this.clear();
+      var todo = this.todo;
       var docfrag = document.createDocumentFragment();
       docfrag.appendChild(this.renderHeader());
-      var that = this;
-      docfrag.appendChild(new TodoInputView(this.onCreate()).render());
+      docfrag.appendChild(new TodoInputView(this.todo).render());
 
       var ul = document.createElement("ul");
       docfrag.appendChild(ul);
-      this.tasks.forEach(function (task) {
-        ul.appendChild(new TaskView(task,this.onDone()).render());
+      todo.tasks.forEach(function (task) {
+        ul.appendChild(new TaskView(task, todo).render());
       });
       this.elem.appendChild(docfrag);
     }
   };
   return {
-    TaskView: TaskView,
-    TodoView: TodoView,
-    TodoInputView: TodoInputView
+    TodoViewController: TodoViewController
   };
 })();
 
-addEventListener("load",function() {
+addEventListener("load", function() {
   var collection = document.getElementsByClassName("todo-list");
-  for (var i=0; i<collection.length; i++) {
-    (new todo.TodoView(collection[i])).render();
-  };
-},false);
+  for (var i = 0; i < collection.length; i++) {
+    (new todo.TodoViewController(collection[i])).render();
+  }
+}, false);
